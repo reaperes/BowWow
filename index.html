@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+  <meta charset="UTF-8">
+  <title>Data visualization - mid term</title>
+  <link type="text/css" rel="stylesheet" href="css/main.css"/>
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script type="text/javascript" src="lib/jquery-2.1.1.min.js"></script>
+  <script type="text/javascript" src="lib/d3.min.js"></script>
+  <script type="text/javascript" src="lib/async.js"></script>
+  <script type="text/javascript" src="dist/all.js"></script>
+</head>
+<body>
+  <h1 id="time">17:80</h1>
+  <div id="music">
+    <audio controls>
+      <source type="audio/mp3" src="sounds/remix.mp3">
+      Your browser does not support the audio element.
+    </audio>
+  </div>
+  <div id="help">
+    <div id="helpContainer">
+      <ul>
+        <li>1 : mute gun</li>
+        <li>2 : vol down gun</li>
+      </ul>
+      <ul>
+        <li>u : Up circle radius</li>
+        <li>i : More up circle radius</li>
+        <li>j : Random color</li>
+        <li>k : Red !!</li>
+        <li>l : Green !!</li>
+        <li>; : Blue !!</li>
+      </ul>
+    </div>
+  </div>
+  <script type="text/javascript">
+    context = new AudioContext();
+    var sound = new Sound(context);
+
+    var cRadius = 5;
+    var circles = [];
+    var svgContainer = d3.select('body')
+        .append('svg')
+        .attr('width', window.innerWidth)
+        .attr('height', window.innerHeight);
+    circles.push(svgContainer.append('circle')
+        .attr('cx', 490)
+        .attr('cy', 152)
+        .attr('r', cRadius)
+        .attr('fill', 'red')
+        .attr('opacity', 0.4));
+    circles.push(svgContainer.append('circle')
+        .attr('cx', 664)
+        .attr('cy', 612)
+        .attr('r', cRadius)
+        .attr('fill', 'red')
+        .attr('opacity', 0.4));
+    circles.push(svgContainer.append('circle')
+        .attr('cx', 378)
+        .attr('cy', 372)
+        .attr('r', cRadius)
+        .attr('fill', 'red')
+        .attr('opacity', 0.4));
+    circles.push(svgContainer.append('circle')
+        .attr('cx', 614)
+        .attr('cy', 221)
+        .attr('r', cRadius)
+        .attr('fill', 'red')
+        .attr('opacity', 0.4));
+    circles.push(svgContainer.append('circle')
+        .attr('cx', 634)
+        .attr('cy', 304)
+        .attr('r', cRadius)
+        .attr('fill', 'red')
+        .attr('opacity', 0.4));
+    circles.push(svgContainer.append('circle')
+        .attr('cx', 586)
+        .attr('cy', 311)
+        .attr('r', cRadius)
+        .attr('fill', 'red')
+        .attr('opacity', 0.4));
+    circles.push(svgContainer.append('circle')
+        .attr('cx', 630)
+        .attr('cy', 271)
+        .attr('r', cRadius)
+        .attr('fill', 'red')
+        .attr('opacity', 0.4));
+
+    var i, l;
+    var files = ['csv/data_choi.csv', 'csv/data-hj.csv', 'csv/data-taeksoon.csv',
+                 'csv/data-ys.csv', 'csv/data_scw.csv', 'csv/data_yg.csv',
+                 'csv/data_yurim.csv'];
+    var events = [];
+
+    for (i=0, l=files.length; i<l; i++) {
+      (function (spot) {
+        var event = {};
+        async.waterfall([
+              // data loading
+              function (callback) {
+                Data.load(files[spot], function (data) {
+                  console.log(files[spot]);
+                  debugger;
+                  callback(null, data);
+                })
+              },
+              // data mining
+              function (data, callback) {
+                debugger;
+                callback(null, Data.findMinMax(data));
+              },
+              // save events
+              function (data, callback) {
+                var i, l, start, end, vol, duration;
+                for (i=0, l=data.length; i<l; i++) {
+                  var d = data[i];
+                  start = d.startTime;
+                  end = d.endTime;
+                  vol = Number(d.volume);
+                  duration = timeToNumber(end) - timeToNumber(start);
+
+                  if (event[start] === undefined) {
+                    event[start] = [{
+                      volume: vol,
+                      duration: duration
+                    }]
+                  } else {
+                    event[start].push({
+                      volume: vol,
+                      duration: duration
+                    })
+                  }
+                }
+
+                function timeToNumber(time) {
+                  var pattern = /12-5-(\d{2}):(\d{1,2}):(\d{1,2}):(\d+)/;
+                  var res = pattern.exec(time);
+                  var h = Number(res[1]);
+                  var m = Number(res[2]);
+                  var s = Number(res[3]);
+                  var c = Number(res[4]);
+                  return h * 36000 + m * 600 + s * 10 + c;
+                }
+
+                callback(null)
+              }
+            ],
+            function (err, result) {
+              events.push(event);
+            });
+      })(i);
+    }
+
+    var tic = '12-5-17:24:0:1';
+    var pattern = /12-5-(\d{2}):(\d{1,2}):(\d{1,2}):(\d+)/;
+
+    $('#time').text(tic);
+    loop();
+    function loop() {
+      var i, l;
+
+      nextTic();
+      $('#time').text(tic);
+
+      for (i=0, l=events.length; i<l; i++) {
+        var event = events[i];
+        if (event[tic] !== undefined) {
+          if (!muteBullet) {
+            if (volDownBullet)
+              sound.shootRound(0, 1, 0.1, 0.1);
+            else
+              sound.shootRound(0, event[tic][0].duration, 0.1, event[tic][0].volume - volDownBullet);
+          }
+          (function (tic, i) {
+            circles[i].transition()
+                .duration(200)
+                .attr('r', event[tic][0].duration * event[tic][0].duration + cRadius * 2)
+                .each('end', function () {
+                  circles[i].transition()
+                      .attr('r', cRadius)
+                })
+          })(tic, i)
+        }
+      }
+
+      function nextTic() {
+        var res = pattern.exec(tic);
+        var h = Number(res[1]);
+        var m = Number(res[2]);
+        var s = Number(res[3]);
+        var c = Number(res[4]);
+
+        if (++c > 9) {
+          c = 0;
+          if (++s > 59) {
+            s = 0;
+            if (++m > 59) {
+              m = 0;
+              ++h;
+            }
+          }
+        }
+
+        return tic = '12-5-' + h + ':' + m + ':' + s + ':' + c;
+      }
+
+      if (tic != '12-5-17:37:3:10')
+        setTimeout(loop, 100);
+    }
+
+    // remix controller
+    // key(keyCode) : Action
+    // 1(49)        : mute bullet
+    // 2(50)        : volume down bullet
+    //
+    // u(85)        : up circle radius
+    // i(73)        : biggest circle radius
+    //
+    // j(74)        : Red Circle
+    // k(75)        : Greed Circle
+    // l(76)        : Blue Circle
+    // ;(186)       : Change random color
+    var muteBullet = false;
+    var volDownBullet = false;
+    var changeCircleColor = false;
+    document.addEventListener('keydown', function (e) {
+      switch (e.keyCode) {
+        case 49: muteBullet = true; break;
+        case 50: volDownBullet = true; break;
+        case 74: (function () {
+          var i, l;
+          cRadius = 50;
+          for (i=0, l=circles.length; i<l; i++)
+            circles[i].attr('fill', 'red').attr('r', cRadius);
+        })(); break;
+        case 85: (function () {
+          var i, l;
+          cRadius = 20;
+          for (i=0, l=circles.length; i<l; i++)
+            circles[i].attr('r', cRadius);
+        })(); break;
+        case 73: (function () {
+          var i, l;
+          cRadius = 50;
+          for (i=0, l=circles.length; i<l; i++)
+            circles[i].attr('r', cRadius);
+        })(); break;
+        case 75: (function () {
+          var i, l;
+          cRadius = 50;
+          for (i=0, l=circles.length; i<l; i++)
+            circles[i].attr('fill', 'green').attr('r', cRadius);
+        })(); break;
+        case 76: (function () {
+          var i, l;
+          cRadius = 50;
+          for (i=0, l=circles.length; i<l; i++)
+            circles[i].attr('fill', 'blue').attr('r', cRadius);
+        })(); break;
+        case 186: (function () {
+          var i, l;
+          cRadius = 50;
+          if (changeCircleColor) return;
+          changeCircleColor = true;
+          for (i=0, l=circles.length; i<l; i++) {
+            circles[i].attr('fill', function() {
+              return "hsl(" + Math.random() * 360 + ",100%,50%)";
+            }).attr('r', cRadius);
+          }
+        })(); break;
+      }
+    });
+    document.addEventListener('keyup', function (e) {
+      switch (e.keyCode) {
+        case 49: muteBullet = false; break;
+        case 50: volDownBullet = false; break;
+        case 74:
+        case 73:
+        case 75:
+        case 76:
+        case 85: (function () {
+          var i, l;
+          cRadius = 5;
+          for (i=0, l=circles.length; i<l; i++)
+            circles[i].attr('r', cRadius);
+        })(); break;
+        case 186: (function () {
+          changeCircleColor = false;
+          var i, l;
+          cRadius = 5;
+          for (i=0, l=circles.length; i<l; i++)
+            circles[i].attr('r', cRadius);
+        })(); break;
+      }
+    });
+
+  </script>
+</body>
+<!-- min sound: 5 -> 0.2, max sound: 650 -> 1.0 -->
+<!-- min duration: 1c, max duration: 10c, over 0.3c only play sound  -->
+<!--choi :      12-5-17:18:43:1 ~ 12-5-17:37:3:10-->
+<!--hj :        12-5-17:25:48:1 ~ 12-5-17:36:43:10-->
+<!--taeksoon :  12-5-17:24:32:1 ~ 12-5-17:36:13:10-->
+<!--ys :        12-5-17:26:36:1 ~ 12-5-17:35:24:10-->
+<!--scw :       12-5-17:24:48:1 ~ 12-5-17:36:37:10-->
+<!--yg :        12-5-17:24:51:1 ~ 12-5-17:36:25:10-->
+<!--yurim :     12-5-17:24:29:1 ~ 12-5-17:36:22:10-->
+</html>
